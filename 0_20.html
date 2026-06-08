@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>小動物數學冒險 🌟 (20以內)</title>
+    <style>
+        body { 
+            margin:0; padding:0; overflow:hidden; 
+            background:linear-gradient(to bottom,#87CEEB,#E0F7FA); 
+            font-family:'Comic Sans MS',cursive,sans-serif; 
+            touch-action: manipulation;
+            height: 100vh;
+        }
+        #canvas { position: fixed; top:0; left:0; width:100%; height:100%; z-index:1; }
+        
+        #ui { 
+            position:fixed; top:0; left:0; width:100%; height:100%; 
+            pointer-events:none; z-index:10; 
+        }
+        
+        #question { 
+            position:absolute; top:8%; left:50%; transform:translateX(-50%); 
+            background:white; padding:20px 25px; border-radius:25px; 
+            box-shadow:0 10px 30px rgba(0,0,0,0.2); font-size:30px; 
+            text-align:center; pointer-events:all; border:7px solid #FF69B4; 
+            max-width:85%; 
+        }
+        
+        .options { 
+            position:absolute; bottom:25px; left:50%; transform:translateX(-50%); 
+            display:flex; flex-direction:row; flex-wrap:nowrap; 
+            justify-content:center; gap:12px; pointer-events:all; 
+            width:95%; max-width:420px; 
+            overflow-x: auto;
+        }
+        
+        .option { 
+            background:#FFF176; padding:16px 20px; font-size:26px; 
+            border-radius:22px; box-shadow:0 6px 15px rgba(0,0,0,0.2); 
+            cursor:pointer; transition:all .2s; border:5px solid #FF4500; 
+            min-width:62px; text-align:center; white-space: nowrap;
+            touch-action: manipulation;
+        }
+        .option:active { 
+            transform:scale(1.18); background:#FFEB3B; 
+        }
+        
+        #progress { 
+            position:absolute; top:5%; right:5%; background:white; padding:10px 20px; 
+            border-radius:20px; font-size:26px; box-shadow:0 5px 15px rgba(0,0,0,0.1); 
+        }
+        
+        #character { 
+            position:absolute; bottom:22%; left:60px; 
+            font-size:120px; transition:left 0.7s ease-in-out; z-index:5; 
+        }
+        
+        .animal { position:absolute; font-size:58px; transition:all .5s; }
+        
+        #win-screen, #lose-screen { 
+            position:fixed; top:0; left:0; width:100%; height:100%; 
+            background:rgba(0,0,0,0.8); display:none; align-items:center; 
+            justify-content:center; flex-direction:column; color:white; z-index:100; 
+            text-align:center; padding:20px; 
+        }
+        button { 
+            margin-top:30px; padding:20px 50px; font-size:30px; 
+            background:#4CAF50; color:white; border:none; border-radius:50px; cursor:pointer; 
+        }
+        h1 { font-size:48px; text-shadow:0 5px 10px rgba(0,0,0,0.3); }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div id="ui">
+        <div id="progress">關卡 <span id="level">1</span>/10</div>
+        <div id="question"><span id="math-question"></span></div>
+        <div class="options" id="options"></div>
+        <div id="character">🐰</div>
+    </div>
+
+    <!-- 路邊可愛小動物 -->
+    <div class="animal" style="left:8%;top:35%;">🦊</div>
+    <div class="animal" style="left:75%;top:40%;">🐻</div>
+    <div class="animal" style="left:15%;top:52%;">🐼</div>
+    <div class="animal" style="left:70%;top:58%;">🐨</div>
+    <div class="animal" style="left:20%;top:70%;">🦁</div>
+    <div class="animal" style="left:78%;top:28%;">🐸</div>
+
+    <div id="win-screen">
+        <h1>🎉 恭喜你打敗大Boss！🎉</h1>
+        <p style="font-size:32px;">你是厲害的數學小英雄！</p>
+        <button onclick="restartGame()">再玩一次</button>
+    </div>
+
+    <div id="lose-screen">
+        <h1>😊 別灰心！下次加油！</h1>
+        <button onclick="restartGame()">再試一次</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, bunny, stars=[];
+        let currentLevel=1, currentAnswer=0, characterLeft=60;
+
+        function init3D(){
+            const canvas=document.getElementById('canvas');
+            renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+            renderer.setSize(window.innerWidth,window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            scene=new THREE.Scene();
+            scene.fog=new THREE.Fog(0x87CEEB,8,120);
+            camera=new THREE.PerspectiveCamera(58,window.innerWidth/window.innerHeight,0.1,1000);
+            camera.position.set(0,9,20);
+            camera.lookAt(0,3,0);
+
+            const ambient=new THREE.AmbientLight(0xffffff,0.85); scene.add(ambient);
+            const sun=new THREE.DirectionalLight(0xfffacd,1.3);
+            sun.position.set(8,25,12); scene.add(sun);
+
+            const ground=new THREE.Mesh(new THREE.PlaneGeometry(120,120),new THREE.MeshLambertMaterial({color:0x7CFC00}));
+            ground.rotation.x=-Math.PI/2; scene.add(ground);
+
+            for(let i=-8;i<=8;i++) createTree(i*4,0);
+
+            for(let i=0;i<30;i++){
+                const s=new THREE.Mesh(new THREE.SphereGeometry(0.35,8,8),new THREE.MeshPhongMaterial({color:Math.random()*0xffffff,emissive:0xffff00}));
+                s.position.set(Math.random()*40-20,8+Math.random()*15,Math.random()*20-10);
+                scene.add(s); stars.push(s);
+            }
+
+            bunny=new THREE.Mesh(new THREE.SphereGeometry(1.3,16,16),new THREE.MeshPhongMaterial({color:0xFFB6C1}));
+            bunny.position.set(-8,2.5,-4); scene.add(bunny);
+
+            window.addEventListener('resize', resizeCanvas);
+        }
+
+        function resizeCanvas(){
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function createTree(x,z){
+            const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.45,0.65,3.5,8),new THREE.MeshLambertMaterial({color:0x8B4513}));
+            trunk.position.set(x,1.8,z); scene.add(trunk);
+            const leaves=new THREE.Mesh(new THREE.SphereGeometry(2.3,12,12),new THREE.MeshLambertMaterial({color:0x228B22}));
+            leaves.position.set(x,4.8,z); scene.add(leaves);
+        }
+
+        function animate(){
+            requestAnimationFrame(animate);
+            stars.forEach((s,i)=> s.position.y += Math.sin(Date.now()*0.0012 + i)*0.009);
+            if(bunny) bunny.rotation.y = Math.sin(Date.now()*0.0025)*0.2;
+            renderer.render(scene,camera);
+        }
+
+        function generateQuestion(){
+            const isAdd = Math.random() > 0.5;
+            let a, b, ans;
+
+            if(isAdd){
+                a = Math.floor(Math.random() * 11) + 1;
+                b = Math.floor(Math.random() * (19 - a)) + 1;
+                ans = a + b;
+            } else {
+                a = Math.floor(Math.random() * 15) + 5;
+                b = Math.floor(Math.random() * a) + 1;
+                ans = a - b;
+            }
+
+            currentAnswer = ans;
+            document.getElementById('math-question').innerHTML = `${a} ${isAdd ? '➕' : '➖'} ${b} = ?`;
+
+            const optsDiv = document.getElementById('options');
+            optsDiv.innerHTML = '';
+            let answers = [ans];
+            while(answers.length < 4){
+                let w = ans + (Math.random() > 0.5 ? 1 : -1) * (Math.floor(Math.random() * 6) + 1);
+                if(w >= 0 && w <= 20 && !answers.includes(w)) answers.push(w);
+            }
+            answers.sort(() => Math.random() - 0.5);
+
+            answers.forEach(opt => {
+                const btn = document.createElement('div');
+                btn.className = 'option';
+                btn.textContent = opt;
+                btn.onclick = () => checkAnswer(opt);
+                optsDiv.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(selected){
+            const char = document.getElementById('character');
+            if(selected === currentAnswer){
+                characterLeft = Math.min(characterLeft + 52, window.innerWidth - 140);
+                char.style.left = characterLeft + 'px';
+
+                document.querySelectorAll('.animal').forEach(a => {
+                    a.style.transform = 'scale(1.4)';
+                    setTimeout(() => a.style.transform = 'scale(1)', 450);
+                });
+
+                if(currentLevel < 10){
+                    currentLevel++;
+                    document.getElementById('level').textContent = currentLevel;
+                    setTimeout(generateQuestion, 650);
+                } else {
+                    document.getElementById('win-screen').style.display = 'flex';
+                }
+            } else {
+                const opts = document.querySelectorAll('.option');
+                opts.forEach(o => {
+                    if(parseInt(o.textContent) === selected){
+                        o.style.background = '#FF6347';
+                        setTimeout(() => o.style.background = '#FFF176', 700);
+                    }
+                });
+            }
+        }
+
+        function startGame(){
+            currentLevel = 1;
+            characterLeft = 60;
+            document.getElementById('character').style.left = '60px';
+            document.getElementById('level').textContent = 1;
+            document.getElementById('win-screen').style.display = 'none';
+            generateQuestion();
+        }
+
+        function restartGame(){ startGame(); }
+
+        window.onload = function(){
+            init3D();
+            animate();
+            startGame();
+        };
+    </script>
+</body>
+</html>
