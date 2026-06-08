@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>動物冒險算數樂園 🐰</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Comic Neue', cursive;
+            background: linear-gradient(180deg, #a8e6ff 0%, #ffd6f5 100%);
+            height: 100vh;
+            overflow: hidden;
+            touch-action: manipulation;
+            display: flex;
+            flex-direction: column;
+        }
+        #game-container {
+            flex: 1;
+            position: relative;
+            max-width: 480px;
+            margin: 0 auto;
+            width: 100%;
+            background: #fff;
+            box-shadow: 0 0 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+            height: 100vh;
+        }
+        canvas { display: block; width: 100%; height: 100%; }
+        
+        .ui-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .top-bar {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 30;
+            pointer-events: auto;
+        }
+        .score, .level { 
+            background: rgba(255,255,255,0.95);
+            padding: 8px 18px;
+            border-radius: 30px;
+            font-size: 26px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .level { color: #5e7aff; }
+
+        /* 問題區域 - 直式 + 小畫板 */
+        .problem-area {
+            position: absolute;
+            top: 78px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255,255,255,0.98);
+            padding: 18px 20px;
+            border-radius: 30px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.25);
+            z-index: 25;
+            pointer-events: auto;
+            display: flex;
+            gap: 18px;
+            min-width: 340px;
+        }
+        .vertical-math-container {
+            text-align: center;
+        }
+        .vertical-math {
+            font-size: 48px;
+            line-height: 1.1;
+            font-weight: bold;
+            color: #333;
+            text-align: right;
+            margin: 12px 0 15px 0;
+        }
+        .drawing-board {
+            border: 5px solid #5e7aff;
+            border-radius: 18px;
+            background: #f8f9ff;
+            box-shadow: inset 0 4px 8px rgba(0,0,0,0.1);
+            touch-action: none;
+        }
+        .board-label {
+            font-size: 18px;
+            color: #666;
+            text-align: center;
+            margin-top: 6px;
+        }
+        .clear-btn {
+            margin-top: 8px;
+            padding: 6px 18px;
+            background: #ff6b9d;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        /* 選擇題 */
+        .choices {
+            position: absolute;
+            bottom: 165px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            z-index: 25;
+            pointer-events: auto;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            padding: 8px 0;
+            width: 100%;
+            max-width: 440px;
+        }
+        .choice-btn {
+            background: white;
+            font-size: 36px;
+            font-weight: bold;
+            min-width: 78px;
+            height: 78px;
+            border-radius: 20px;
+            border: 6px solid #ffd93d;
+            box-shadow: 0 6px 0 #e6b800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ff6b9d;
+            flex-shrink: 0;
+        }
+        .choice-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 3px 0 #e6b800;
+        }
+
+        .character {
+            position: absolute;
+            bottom: 92px;
+            left: 45px;
+            font-size: 108px;
+            transition: left 0.9s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            z-index: 20;
+            filter: drop-shadow(0 12px 12px rgba(0,0,0,0.3));
+        }
+        .boss {
+            position: absolute;
+            bottom: 92px;
+            right: 45px;
+            font-size: 104px;
+            z-index: 18;
+        }
+        .stars {
+            position: absolute;
+            top: 68px;
+            right: 20px;
+            font-size: 32px;
+            z-index: 30;
+        }
+
+        .modal {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.75);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background: white;
+            padding: 40px 30px;
+            border-radius: 40px;
+            text-align: center;
+            max-width: 90%;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="canvas" width="480" height="800"></canvas>
+        
+        <div class="ui-overlay">
+            <div class="top-bar">
+                <div class="score">🏆 <span id="score">0</span></div>
+                <div class="level">第 <span id="level">1</span> 關</div>
+                <div class="score">❤️ <span id="hearts">3</span></div>
+            </div>
+            
+            <!-- 問題區域：直式 + 小畫板 -->
+            <div class="problem-area" id="problem-panel">
+                <div class="vertical-math-container">
+                    <div id="operation" style="font-size: 27px; color: #ff6b9d; margin-bottom: 8px;"></div>
+                    <div class="vertical-math" id="vertical-math"></div>
+                    <div style="font-size:20px; color:#555;">直式計算</div>
+                </div>
+                
+                <!-- 小畫板 -->
+                <div>
+                    <canvas id="draw-canvas" class="drawing-board" width="140" height="160"></canvas>
+                    <div class="board-label">小畫板（計算用）</div>
+                    <button onclick="clearDrawing()" class="clear-btn">🗑️ 清除</button>
+                </div>
+            </div>
+            
+            <!-- 選擇題 -->
+            <div class="choices" id="choices-panel"></div>
+            
+            <!-- 角色 -->
+            <div class="character" id="player">🐰</div>
+            <div class="boss" id="boss">🐲</div>
+            <div class="stars" id="stars">⭐⭐⭐</div>
+        </div>
+        
+        <!-- Modals -->
+        <div class="modal" id="start-modal" style="display:flex;">
+            <div class="modal-content">
+                <h1>🐰 動物冒險算數樂園 🦁</h1>
+                <p style="font-size:28px; margin:20px 0;">100 以內加減法練習</p>
+                <button onclick="startGame()" 
+                        style="font-size:32px; padding:20px 60px; background:#ff6b9d; color:white; border:none; border-radius:50px; margin-top:20px;">
+                    🚀 開始遊戲
+                </button>
+            </div>
+        </div>
+        
+        <div class="modal" id="win-modal">
+            <div class="modal-content">
+                <h1>🎉 太棒了！</h1>
+                <p id="win-text" style="font-size:28px; margin:20px 0;"></p>
+                <button onclick="nextLevel()" 
+                        style="font-size:28px; padding:15px 50px; background:#5e7aff; color:white; border:none; border-radius:50px;">
+                    下一關 →
+                </button>
+            </div>
+        </div>
+        
+        <div class="modal" id="gameover-modal">
+            <div class="modal-content">
+                <h1>😢 再試一次！</h1>
+                <button onclick="restartGame()" 
+                        style="font-size:28px; padding:15px 50px; background:#ff6b9d; color:white; border:none; border-radius:50px; margin-top:20px;">
+                    🔄 重新開始
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 畫板
+        const drawCanvas = document.getElementById('draw-canvas');
+        const drawCtx = drawCanvas.getContext('2d');
+        let isDrawing = false;
+        let lastX = 0, lastY = 0;
+        
+        let score = 0, level = 1, hearts = 3, progress = 0;
+        let currentAnswer = 0;
+        let currentProblem = {};
+        
+        const animals = ['🐰','🦊','🐻','🐱','🦁','🐵','🐮','🦋'];
+        
+        function generateProblem() {
+            const isAddition = Math.random() > 0.4 || level < 3;
+            let a, b;
+            
+            if (isAddition) {
+                a = Math.floor(Math.random() * 50) + 10;
+                b = Math.floor(Math.random() * 50) + 10;
+                currentAnswer = a + b;
+            } else {
+                a = Math.floor(Math.random() * 60) + 40;
+                b = Math.floor(Math.random() * 40) + 10;
+                currentAnswer = a - b;
+            }
+            
+            currentProblem.a = a;
+            currentProblem.op = isAddition ? '+' : '−';
+            currentProblem.b = b;
+            
+            const vertical = document.getElementById('vertical-math');
+            vertical.innerHTML = `
+                &nbsp;${a}<br>
+                ${currentProblem.op} ${b}<br>
+                <span style="border-top: 5px solid #333; display:inline-block; width:120px; margin-top:8px;"></span>
+            `;
+            
+            document.getElementById('operation').textContent = isAddition ? '加法練習' : '減法練習';
+            clearDrawing();
+        }
+        
+        function createChoices() {
+            const panel = document.getElementById('choices-panel');
+            panel.innerHTML = '';
+            
+            const correct = currentAnswer;
+            let wrongs = [];
+            while (wrongs.length < 3) {
+                const wrong = correct + (Math.random() > 0.5 ? 1 : -1) * (Math.floor(Math.random() * 14) + 3);
+                if (wrong > 0 && wrong !== correct && !wrongs.includes(wrong)) wrongs.push(wrong);
+            }
+            
+            const all = [correct, ...wrongs].sort(() => Math.random() - 0.5);
+            
+            all.forEach(ans => {
+                const btn = document.createElement('div');
+                btn.className = 'choice-btn';
+                btn.textContent = ans;
+                btn.onclick = () => checkAnswer(ans, btn);
+                panel.appendChild(btn);
+            });
+        }
+        
+        function checkAnswer(selected, btn) {
+            if (selected === currentAnswer) {
+                btn.style.background = '#7cff9e';
+                btn.style.borderColor = '#00cc44';
+                score += 10 + level * 5;
+                document.getElementById('score').textContent = score;
+                
+                progress = Math.min(100, progress + 17);
+                updatePlayerPosition();
+                showConfetti();
+                
+                if (progress >= 100) {
+                    setTimeout(() => {
+                        document.getElementById('win-modal').style.display = 'flex';
+                        document.getElementById('win-text').innerHTML = `成功打敗大恐龍！<br>總分：${score}`;
+                    }, 700);
+                } else {
+                    setTimeout(nextProblem, 850);
+                }
+            } else {
+                btn.style.background = '#ff6b6b';
+                hearts--;
+                document.getElementById('hearts').textContent = hearts;
+                if (hearts <= 0) {
+                    setTimeout(() => document.getElementById('gameover-modal').style.display = 'flex', 500);
+                } else {
+                    setTimeout(nextProblem, 700);
+                }
+            }
+        }
+        
+        function updatePlayerPosition() {
+            const player = document.getElementById('player');
+            const maxMove = 280;
+            player.style.left = `${45 + maxMove * (progress / 100)}px`;
+        }
+        
+        function nextProblem() {
+            generateProblem();
+            createChoices();
+        }
+        
+        function nextLevel() {
+            document.getElementById('win-modal').style.display = 'none';
+            level++;
+            document.getElementById('level').textContent = level;
+            progress = 0;
+            document.getElementById('player').style.left = '45px';
+            hearts = Math.min(3, hearts + 1);
+            document.getElementById('hearts').textContent = hearts;
+            nextProblem();
+        }
+        
+        function showConfetti() {
+            for (let i = 0; i < 45; i++) {
+                setTimeout(() => {
+                    const c = document.createElement('div');
+                    c.style.position = 'absolute';
+                    c.style.left = Math.random() * 100 + '%';
+                    c.style.top = '-30px';
+                    c.style.fontSize = '28px';
+                    c.style.zIndex = '35';
+                    c.textContent = ['🌟','🍭','🦋','🌈','🐣','🍬'][Math.floor(Math.random()*6)];
+                    document.getElementById('game-container').appendChild(c);
+                    c.animate([{transform: 'translateY(0) rotate(0deg)', opacity: 1}, {transform: `translateY(700px) rotate(${Math.random()*900 - 450}deg)`, opacity: 0}], {duration: 2000, easing: 'cubic-bezier(0.25,0.1,0.25,1)'});
+                    setTimeout(() => c.remove(), 3000);
+                }, i * 16);
+            }
+        }
+        
+        // 畫板功能
+        function initDrawing() {
+            drawCtx.lineCap = 'round';
+            drawCtx.lineJoin = 'round';
+            drawCtx.strokeStyle = '#333';
+            drawCtx.lineWidth = 6;
+            
+            // 滑鼠 / 觸控事件
+            drawCanvas.addEventListener('mousedown', startDraw);
+            drawCanvas.addEventListener('mousemove', draw);
+            drawCanvas.addEventListener('mouseup', stopDraw);
+            drawCanvas.addEventListener('mouseout', stopDraw);
+            
+            drawCanvas.addEventListener('touchstart', handleTouch);
+            drawCanvas.addEventListener('touchmove', handleTouch);
+            drawCanvas.addEventListener('touchend', stopDraw);
+        }
+        
+        function startDraw(e) {
+            isDrawing = true;
+            const rect = drawCanvas.getBoundingClientRect();
+            lastX = e.clientX - rect.left;
+            lastY = e.clientY - rect.top;
+        }
+        
+        function draw(e) {
+            if (!isDrawing) return;
+            const rect = drawCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            drawCtx.beginPath();
+            drawCtx.moveTo(lastX, lastY);
+            drawCtx.lineTo(x, y);
+            drawCtx.stroke();
+            
+            lastX = x;
+            lastY = y;
+        }
+        
+        function stopDraw() {
+            isDrawing = false;
+        }
+        
+        function handleTouch(e) {
+            e.preventDefault();
+            if (e.touches.length === 0) return;
+            const touch = e.touches[0];
+            const rect = drawCanvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+            
+            if (!isDrawing) {
+                isDrawing = true;
+                lastX = x;
+                lastY = y;
+            } else {
+                drawCtx.beginPath();
+                drawCtx.moveTo(lastX, lastY);
+                drawCtx.lineTo(x, y);
+                drawCtx.stroke();
+                lastX = x;
+                lastY = y;
+            }
+        }
+        
+        function clearDrawing() {
+            drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+        }
+        
+        function gameLoop() {
+            ctx.fillStyle = '#a8e6ff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height * 0.58);
+            ctx.fillStyle = '#7bed9f';
+            ctx.fillRect(0, canvas.height * 0.58, canvas.width, canvas.height);
+            ctx.fillStyle = 'rgba(255,240,100,0.65)';
+            ctx.beginPath(); ctx.arc(380, 130, 85, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = 'white';
+            drawCloud(90, 110, 1);
+            drawCloud(310, 75, 0.85);
+            ctx.fillStyle = '#ffe066';
+            ctx.fillRect(0, 590, canvas.width, 210);
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function drawCloud(x, y, scale) {
+            ctx.save();
+            ctx.scale(scale, scale);
+            ctx.beginPath(); ctx.ellipse(x, y, 55, 32, 0, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(x-32, y-12, 38, 28, 0, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(x+35, y-18, 35, 30, 0, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+        }
+        
+        function startGame() {
+            document.getElementById('start-modal').style.display = 'none';
+            score = 0; level = 1; hearts = 3; progress = 0;
+            document.getElementById('score').textContent = '0';
+            document.getElementById('level').textContent = '1';
+            document.getElementById('hearts').textContent = '3';
+            document.getElementById('player').style.left = '45px';
+            nextProblem();
+        }
+        
+        function restartGame() {
+            document.getElementById('gameover-modal').style.display = 'none';
+            startGame();
+        }
+        
+        window.onload = () => {
+            gameLoop();
+            initDrawing();
+        };
+    </script>
+</body>
+</html>
