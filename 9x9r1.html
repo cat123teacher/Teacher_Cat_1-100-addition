@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>小狐狸乘法大冒險 🦊</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap');
+        
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Comic Neue', cursive;
+            background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
+            overflow: hidden;
+            height: 100vh;
+            color: #333;
+            touch-action: manipulation;
+        }
+        
+        #game-container {
+            max-width: 100%;
+            height: 100vh;
+            background: white;
+            box-shadow: 0 0 30px rgba(0,0,0,0.15);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        
+        header {
+            background: linear-gradient(to right, #ff6b6b, #4ecdc4, #45b7d1, #ff9800);
+            padding: 10px 15px;
+            text-align: center;
+            color: white;
+            flex-shrink: 0;
+            position: relative;
+            z-index: 10;
+        }
+        
+        h1 {
+            margin: 5px 0 2px;
+            font-size: 1.75em;
+            text-shadow: 3px 3px 0 #333;
+        }
+        
+        .level {
+            font-size: 1.1em;
+            margin: 0;
+        }
+        
+        /* 左上角貓咪 */
+        #cat-link {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            z-index: 20;
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+        
+        #cat-link:hover {
+            transform: scale(1.1);
+        }
+        
+        #cat-link img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        #canvas {
+            display: block;
+            width: 100%;
+            height: 37vh;
+            background: linear-gradient(to bottom, #87CEEB, #ffe066, #98FB98);
+            flex-shrink: 0;
+        }
+        
+        #main-ui {
+            flex: 1;
+            padding: 12px 15px 15px;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+        }
+        
+        #progress {
+            width: 100%;
+            height: 28px;
+            background: #eee;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 4px solid #333;
+        }
+        
+        #progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(to right, #4caf50, #8bc34a);
+            transition: width 0.6s ease;
+        }
+        
+        #question {
+            font-size: 2.1em;
+            font-weight: bold;
+            background: #fff9c4;
+            padding: 18px 25px;
+            border-radius: 25px;
+            border: 8px solid #ff5722;
+            min-height: 68px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            box-shadow: 0 8px 0 #f57c00;
+        }
+        
+        .options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            flex: 1;
+        }
+        
+        .option-btn {
+            font-size: 1.85em;
+            padding: 18px 10px;
+            border: none;
+            border-radius: 20px;
+            background: linear-gradient(#ffeb3b, #fbc02d);
+            box-shadow: 0 8px 0 #f9a825;
+            cursor: pointer;
+            font-family: 'Comic Neue', cursive;
+        }
+        
+        .option-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 4px 0 #f9a825;
+        }
+        
+        #feedback {
+            min-height: 50px;
+            font-size: 1.5em;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .cute-btn {
+            background: #ff4081;
+            color: white;
+            padding: 12px 35px;
+            font-size: 1.45em;
+            border: none;
+            border-radius: 50px;
+            box-shadow: 0 6px 0 #c51162;
+            margin: 8px auto;
+        }
+        
+        .start-screen, .level-complete {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(255,255,255,0.97);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .star {
+            position: absolute;
+            font-size: 2em;
+            animation: floatUp 2s forwards;
+            pointer-events: none;
+        }
+        
+        @keyframes floatUp {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-140px); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <header>
+            <!-- 左上角貓咪圖片 + WhatsApp 連結 -->
+            <a href="https://wa.me/85284938987" target="_blank" id="cat-link">
+                <img src="cat.png" alt="可愛貓咪" title="聯絡我們">
+            </a>
+            
+            <h1>🦊 小狐狸乘法大冒險 🦊</h1>
+            <p class="level" id="level-display">第 1 關</p>
+        </header>
+        
+        <canvas id="canvas" width="1000" height="380"></canvas>
+        
+        <div id="main-ui">
+            <div id="progress">
+                <div id="progress-bar"></div>
+            </div>
+            
+            <div id="question">準備好開始了嗎？</div>
+            
+            <div class="options" id="options"></div>
+            
+            <div id="feedback"></div>
+            
+            <button onclick="nextQuestion()" class="cute-btn" id="next-btn" style="display:none;">下一題 →</button>
+        </div>
+
+        <!-- 開始畫面 -->
+        <div id="start-screen" class="start-screen">
+            <div class="start-title">🦊 乘法魔法森林 🦊</div>
+            <p style="font-size:1.5em; margin:15px 0 25px;">小朋友，跟小狐狸一起練習乘法吧！</p>
+            <button onclick="startGame()" class="cute-btn" style="font-size:2em;padding:18px 50px;">開始遊戲！</button>
+        </div>
+
+        <!-- 過關畫面 -->
+        <div id="level-complete" class="level-complete" style="display:none;">
+            <h1 style="font-size:3em;color:#4caf50;margin:0;">🎉 恭喜過關！🎉</h1>
+            <p id="complete-text" style="font-size:1.8em;margin:20px 0 10px;"></p>
+            <button onclick="nextLevel()" class="cute-btn" style="font-size:2em;padding:18px 50px;">下一關 →</button>
+        </div>
+    </div>
+
+    <script>
+        // （以下程式碼與上一個版本完全相同，只改了畫面部分）
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let foxX = 60;
+        const foxY = 220;
+        let progress = 0;
+        const questionsPerLevel = 12;
+        let currentLevel = 1;
+        let currentQuestion = null;
+        let score = 0;
+        let answered = false;
+        let gameStarted = false;
+
+        let clouds = [{x:80,y:60,size:55}, {x:420,y:45,size:75}, {x:780,y:80,size:50}];
+
+        function drawBackground() {
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(0, 0, canvas.width, 200);
+            ctx.fillStyle = '#ffe066';
+            ctx.fillRect(0, 200, canvas.width, canvas.height - 200);
+            
+            ctx.fillStyle = '#FFCC80';
+            ctx.beginPath();
+            ctx.moveTo(30, 250);
+            ctx.quadraticCurveTo(250, 280, 480, 245);
+            ctx.quadraticCurveTo(720, 230, 950, 260);
+            ctx.lineTo(950, 350);
+            ctx.lineTo(30, 350);
+            ctx.fill();
+            
+            drawTree(140, 150);
+            drawTree(650, 135);
+            
+            ctx.fillStyle = 'white';
+            clouds.forEach(c => {
+                ctx.beginPath();
+                ctx.ellipse(c.x, c.y, c.size, c.size*0.6, 0, 0, Math.PI*2);
+                ctx.fill();
+            });
+        }
+
+        function drawTree(x, y) {
+            ctx.fillStyle = '#8D5524';
+            ctx.fillRect(x-12, y+30, 25, 65);
+            ctx.fillStyle = '#228B22';
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x-38, y+50);
+            ctx.lineTo(x+38, y+50);
+            ctx.fill();
+        }
+
+        function drawFox(x, y) {
+            ctx.fillStyle = '#FF9800';
+            ctx.beginPath(); ctx.ellipse(x, y+20, 42, 32, 0, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(x, y-8, 30, 28, 0, 0, Math.PI*2); ctx.fill();
+            
+            ctx.fillStyle = '#FF9800';
+            ctx.beginPath(); ctx.ellipse(x-17, y-38, 11, 28, -0.6, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(x+17, y-38, 11, 28, 0.6, 0, Math.PI*2); ctx.fill();
+            
+            ctx.fillStyle = '#FF4081';
+            ctx.beginPath(); ctx.ellipse(x-17, y-36, 6, 15, -0.6, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(x+17, y-36, 6, 15, 0.6, 0, Math.PI*2); ctx.fill();
+            
+            ctx.fillStyle = '#222';
+            ctx.beginPath(); ctx.arc(x-10, y-10, 6, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(x+10, y-10, 6, 0, Math.PI*2); ctx.fill();
+            
+            ctx.fillStyle = '#222';
+            ctx.beginPath(); ctx.ellipse(x, y-3, 5, 4, 0, 0, Math.PI*2); ctx.fill();
+        }
+
+        function drawBoss(x, y) {
+            ctx.fillStyle = '#9C27B0';
+            ctx.beginPath(); ctx.ellipse(x, y+30, 65, 48, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#FF1744';
+            ctx.beginPath(); ctx.arc(x-18, y-10, 12, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(x+18, y-10, 12, 0, Math.PI*2); ctx.fill();
+        }
+
+        function updateUI() {
+            document.getElementById('level-display').textContent = `第 ${currentLevel} 關`;
+            document.getElementById('progress-bar').style.width = (progress / questionsPerLevel * 100) + '%';
+        }
+
+        function generateQuestion() {
+            const a = Math.floor(Math.random() * 9) + 1;
+            const b = Math.floor(Math.random() * 9) + 1;
+            const product = a * b;
+            let options = [product];
+            while (options.length < 4) {
+                let w = Math.floor(Math.random() * 81) + 1;
+                if (!options.includes(w)) options.push(w);
+            }
+            options.sort(() => Math.random() - 0.5);
+            return { q: `${a} × ${b} = ?`, answer: product, options };
+        }
+
+        function showQuestion() {
+            answered = false;
+            currentQuestion = generateQuestion();
+            document.getElementById('question').textContent = currentQuestion.q;
+            
+            const opts = document.getElementById('options');
+            opts.innerHTML = '';
+            currentQuestion.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.textContent = opt;
+                btn.onclick = () => checkAnswer(opt);
+                opts.appendChild(btn);
+            });
+            document.getElementById('feedback').innerHTML = '';
+            document.getElementById('next-btn').style.display = 'none';
+        }
+
+        function checkAnswer(selected) {
+            if (answered) return;
+            answered = true;
+            const correct = selected === currentQuestion.answer;
+            const fb = document.getElementById('feedback');
+            
+            if (correct) {
+                score++;
+                progress++;
+                updateUI();
+                fb.innerHTML = `<span style="color:#4caf50">✅ 太棒了！小狐狸前進！</span>`;
+                moveFox();
+                createStars();
+                if (progress >= questionsPerLevel) setTimeout(showLevelComplete, 800);
+            } else {
+                fb.innerHTML = `<span style="color:#f44336">😕 答案是 ${currentQuestion.answer} 喔～</span>`;
+            }
+            document.getElementById('next-btn').style.display = 'block';
+        }
+
+        function moveFox() {
+            const target = 80 + (progress / questionsPerLevel) * 780;
+            const step = (target - foxX) / 14;
+            let count = 0;
+            const timer = setInterval(() => {
+                foxX += step; count++;
+                drawScene();
+                if (count >= 14) {
+                    clearInterval(timer);
+                    foxX = Math.round(target);
+                    drawScene();
+                }
+            }, 35);
+        }
+
+        function createStars() {
+            for (let i = 0; i < 8; i++) {
+                setTimeout(() => {
+                    const s = document.createElement('div');
+                    s.className = 'star';
+                    s.textContent = ['✨','⭐','🌟'][Math.floor(Math.random()*3)];
+                    s.style.left = (foxX + 30 + Math.random()*70) + 'px';
+                    s.style.top = (foxY - 70) + 'px';
+                    document.getElementById('game-container').appendChild(s);
+                    setTimeout(() => s.remove(), 1800);
+                }, i * 80);
+            }
+        }
+
+        function drawScene() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackground();
+            drawFox(foxX, foxY);
+            
+            if (progress < questionsPerLevel) {
+                ctx.fillStyle = '#FF9800';
+                ctx.fillRect(860, 130, 100, 110);
+            } else {
+                drawBoss(830, 180);
+            }
+        }
+
+        function nextQuestion() {
+            showQuestion();
+            drawScene();
+        }
+
+        function showLevelComplete() {
+            document.getElementById('complete-text').innerHTML = `第 ${currentLevel} 關完成！<br>答對 ${score} 題`;
+            document.getElementById('level-complete').style.display = 'flex';
+        }
+
+        function nextLevel() {
+            currentLevel++;
+            progress = 0;
+            foxX = 60;
+            score = 0;
+            document.getElementById('level-complete').style.display = 'none';
+            updateUI();
+            showQuestion();
+            drawScene();
+        }
+
+        function startGame() {
+            gameStarted = true;
+            document.getElementById('start-screen').style.display = 'none';
+            currentLevel = 1;
+            progress = 0;
+            foxX = 60;
+            score = 0;
+            updateUI();
+            showQuestion();
+            drawScene();
+        }
+
+        window.onload = () => {
+            drawScene();
+        };
+    </script>
+</body>
+</html>
