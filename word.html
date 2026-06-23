@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>基礎漢字500 生字學習 App</title>
+<style>
+  body {
+    font-family: 'Arial', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background-color: #f9f9f9;
+    margin: 0;
+  }
+  #word-display {
+    font-size: 150px;
+    font-weight: bold;
+    margin-bottom: 30px;
+    color: #333;
+  }
+  .btn {
+    padding: 20px 40px;
+    font-size: 24px;
+    cursor: pointer;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 15px;
+    margin-bottom: 40px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  }
+  .nav-controls {
+    display: flex;
+    gap: 20px;
+  }
+  .nav-btn {
+    padding: 15px 30px;
+    font-size: 20px;
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  .nav-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
+</style>
+</head>
+<body>
+
+<div id="word-display">山</div>
+<button class="btn" onclick="speakWord()">🔊 讀出聲音</button>
+
+<div class="nav-controls">
+  <button class="nav-btn" id="prev-btn" onclick="prevWord()" disabled>上一字</button>
+  <button class="nav-btn" id="next-btn" onclick="nextWord()">下一字</button>
+</div>
+
+<script>
+  // 來源文件中的 20 個生字
+  const words = ['山', '高', '的', '人', '個', '大', '上', '下', '在', '有', '手', '很', '隻', '小', '孩', '家', '也', '我', '指', '五'];
+  let currentIndex = 0;
+
+  const wordDisplay = document.getElementById('word-display');
+  const prevBtn = document.getElementById('prev-btn');
+  const nextBtn = document.getElementById('next-btn');
+
+  function updateDisplay() {
+    wordDisplay.innerText = words[currentIndex];
+    // 更新按鈕狀態
+    prevBtn.disabled = currentIndex === 0;
+    nextBtn.disabled = currentIndex === words.length - 1;
+  }
+
+  function speakWord() {
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(words[currentIndex]);
+      utterance.lang = 'zh-HK'; // 設定為廣東話 (如需普通話可改為 'zh-TW' 或 'zh-CN')
+      utterance.rate = 0.8; // 稍微放慢語速適合學習
+      window.speechSynthesis.speak(utterance);
+    } else {
+      alert("抱歉，您的瀏覽器不支援語音發聲功能。");
+    }
+  }
+
+  function nextWord() {
+    if (currentIndex < words.length - 1) {
+      currentIndex++;
+      updateDisplay();
+    }
+  }
+
+  function prevWord() {
+    if (currentIndex > 0) {
+      currentIndex--;
+      updateDisplay();
+    }
+  }
+</script>
+
+</body>
+</html>
